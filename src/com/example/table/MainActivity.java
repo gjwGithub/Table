@@ -1,19 +1,42 @@
 package com.example.table;
 
+import org.achartengine.ChartFactory;
+import org.achartengine.GraphicalView;
+import org.achartengine.chart.PointStyle;
+import org.achartengine.model.CategorySeries;
+import org.achartengine.model.XYMultipleSeriesDataset;
+import org.achartengine.renderer.XYMultipleSeriesRenderer;
+import org.achartengine.renderer.XYSeriesRenderer;
+
 import android.app.Activity;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.widget.LinearLayout;
+import android.widget.LinearLayout.LayoutParams;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
 	SensorManager sensorManager = null;
 	Sensor sensor = null;
+
+	final int size = 4096;
+	double[] x = new double[size];
+	double[] y = new double[size];
+	double[] z = new double[size];
+	int xIndex = 0;
+	int yIndex = 0;
+	int zIndex = 0;
+
+	private GraphicalView chart;
+	private CategorySeries series1;
+	private CategorySeries series2;
+	private CategorySeries series3;
+	private XYMultipleSeriesDataset dataset;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -22,7 +45,16 @@ public class MainActivity extends Activity implements SensorEventListener {
 
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 		sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-		sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME);
+		sensorManager.registerListener(this, sensor,
+				SensorManager.SENSOR_DELAY_GAME);
+
+		LinearLayout layout = (LinearLayout) findViewById(R.id.linearLayout);
+		// 生成图表
+		chart = ChartFactory.getCubeLineChartView(this, getDateDemoDataset(),
+				getDemoRenderer(), 0.5f);
+		layout.addView(chart, new LayoutParams(LayoutParams.WRAP_CONTENT, 380));
+		
+		thread.start();
 	}
 
 	@Override
@@ -34,7 +66,154 @@ public class MainActivity extends Activity implements SensorEventListener {
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		// TODO Auto-generated method stub
-		if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE)
-			Log.e("tag", "x: "+event.values[0]+" y: "+event.values[1]+" z: "+event.values[2]);
+		if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+			addX(event.values[0]);
+			addY(event.values[1]);
+			addZ(event.values[2]);
+		}
+		// Log.e("tag", "x: " + event.values[0] + " y: " + event.values[1]
+		// + " z: " + event.values[2]);
+	}
+
+	private void addX(float x) {
+		if (xIndex >= size) {
+			for (int i = 0; i < size; i++)
+				this.x[i] = 0;
+			xIndex = 0;
+		}
+		this.x[xIndex++] = x;
+	}
+
+	private void addY(float y) {
+		if (yIndex >= size) {
+			for (int i = 0; i < size; i++)
+				this.y[i] = 0;
+			yIndex = 0;
+		}
+		this.y[yIndex++] = y;
+	}
+
+	private void addZ(float z) {
+		if (zIndex >= size) {
+			for (int i = 0; i < size; i++)
+				this.z[i] = 0;
+			zIndex = 0;
+		}
+		this.z[zIndex++] = z;
+	}
+
+	Thread thread = new Thread() {
+
+		@Override
+		public void run() {
+			buildBarDataset();
+			chart.invalidate();
+			try {
+				sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		};
+	};
+
+	protected void buildBarDataset() {
+		dataset.clear();
+		String title = new String("Chart");
+		series1 = new CategorySeries(title);
+		series2 = new CategorySeries(title);
+		series3 = new CategorySeries(title);
+		int seriesLength = x.length;
+		for (int k = 0; k < seriesLength; k++) {
+			series1.add(x[k]);
+		}
+		seriesLength = y.length;
+		for (int k = 0; k < seriesLength; k++) {
+			series2.add(y[k]);
+		}
+		seriesLength = z.length;
+		for (int k = 0; k < seriesLength; k++) {
+			series3.add(z[k]);
+		}
+		dataset.addSeries(series1.toXYSeries());
+		dataset.addSeries(series2.toXYSeries());
+		dataset.addSeries(series3.toXYSeries());
+	}
+
+	private XYMultipleSeriesRenderer getDemoRenderer() {
+		int[] colors = new int[] { Color.RED, Color.GREEN, Color.BLUE };
+		PointStyle[] styles = new PointStyle[] { PointStyle.POINT,
+				PointStyle.POINT, PointStyle.POINT };
+		XYMultipleSeriesRenderer renderer = buildRenderer(colors, styles);
+		setChartSettings(renderer, /* 渲染器 */
+				"Record", /* 图表标题 */
+				"Index", /* x轴标题 */
+				"Value", /* y轴标题 */
+				0, /* x轴最小值 */
+				size, /* x轴最大值 */
+				-1, /* y轴最小值 */
+				1, /* y轴最大值 */
+				Color.GRAY, /* 坐标轴颜色 */
+				Color.LTGRAY); /* 标签颜色 标签即 图表标题 xy轴标题 */
+
+		renderer.setXLabels(12); /* 设置 x 轴刻度个数 */
+		renderer.setYLabels(10); /* 设置 y 轴刻度个数 */
+		renderer.setChartTitleTextSize(20); /* 设置表格标题字体大小 */
+		renderer.setTextTypeface("sans_serif", Typeface.BOLD); /* 设置字体 */
+		renderer.setLabelsTextSize(14f); /* 设置字体大小 */
+		renderer.setAxisTitleTextSize(15);
+		renderer.setLegendTextSize(15);
+		return renderer;
+	}
+
+	protected void setChartSettings(XYMultipleSeriesRenderer renderer,
+			String title, String xTitle, String yTitle, double xMin,
+			double xMax, double yMin, double yMax, int axesColor,
+			int labelsColor) {
+		renderer.setChartTitle(title);
+		renderer.setXTitle(xTitle);
+		renderer.setYTitle(yTitle);
+		renderer.setXAxisMin(xMin);
+		renderer.setXAxisMax(xMax);
+		renderer.setYAxisMin(yMin);
+		renderer.setYAxisMax(yMax);
+		renderer.setAxesColor(axesColor);
+		renderer.setLabelsColor(labelsColor);
+	}
+
+	protected XYMultipleSeriesRenderer buildRenderer(int[] colors,
+			PointStyle[] styles) {
+		XYMultipleSeriesRenderer renderer = new XYMultipleSeriesRenderer();
+		setRenderer(renderer, colors, styles);
+		return renderer;
+	}
+
+	protected void setRenderer(XYMultipleSeriesRenderer renderer, int[] colors,
+			PointStyle[] styles) {
+		renderer.setAxisTitleTextSize(16);
+		renderer.setChartTitleTextSize(20);
+		renderer.setLabelsTextSize(15);
+		renderer.setLegendTextSize(15);
+		renderer.setPointSize(5f);
+		renderer.setMargins(new int[] { 20, 30, 15, 20 });
+		int length = colors.length;
+		for (int i = 0; i < length; i++) {
+			XYSeriesRenderer r = new XYSeriesRenderer();
+			r.setColor(colors[i]);
+			r.setPointStyle(styles[i]);
+			renderer.addSeriesRenderer(r);
+		}
+	}
+
+	private XYMultipleSeriesDataset getDateDemoDataset() {
+		String title = new String("Chart");
+		series1 = new CategorySeries(title);
+		series2 = new CategorySeries(title);
+		series3 = new CategorySeries(title);
+		dataset = new XYMultipleSeriesDataset();
+		dataset.addSeries(series1.toXYSeries());
+		dataset.addSeries(series2.toXYSeries());
+		dataset.addSeries(series3.toXYSeries());
+		return dataset;
 	}
 }
