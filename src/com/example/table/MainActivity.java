@@ -1,5 +1,8 @@
 package com.example.table;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import org.achartengine.ChartFactory;
 import org.achartengine.GraphicalView;
 import org.achartengine.chart.PointStyle;
@@ -16,6 +19,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 
@@ -37,6 +42,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private CategorySeries series2;
 	private CategorySeries series3;
 	private XYMultipleSeriesDataset dataset;
+	
+	private Timer timer = new Timer();
+	private TimerTask task;
+	private static Handler handler;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +63,24 @@ public class MainActivity extends Activity implements SensorEventListener {
 				getDemoRenderer(), 0.5f);
 		layout.addView(chart, new LayoutParams(LayoutParams.WRAP_CONTENT, 380));
 		
-		thread.start();
+		handler = new Handler() {
+			@Override
+			public void handleMessage(Message msg) {
+				// Ë¢ÐÂÍ¼±í
+				buildBarDataset();
+				chart.invalidate();
+				super.handleMessage(msg);
+			}
+		};
+		task = new TimerTask() {
+			@Override
+			public void run() {
+				Message message = new Message();
+				message.what = 200;
+				handler.sendMessage(message);
+			}
+		};
+		timer.schedule(task, 500, 200);
 	}
 
 	@Override
@@ -102,27 +128,11 @@ public class MainActivity extends Activity implements SensorEventListener {
 		this.z[zIndex++] = z;
 	}
 
-	Thread thread = new Thread() {
-
-		@Override
-		public void run() {
-			buildBarDataset();
-			chart.invalidate();
-			try {
-				sleep(200);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		};
-	};
-
 	protected void buildBarDataset() {
 		dataset.clear();
-		String title = new String("Chart");
-		series1 = new CategorySeries(title);
-		series2 = new CategorySeries(title);
-		series3 = new CategorySeries(title);
+		series1 = new CategorySeries("X");
+		series2 = new CategorySeries("Y");
+		series3 = new CategorySeries("Z");
 		int seriesLength = x.length;
 		for (int k = 0; k < seriesLength; k++) {
 			series1.add(x[k]);
@@ -206,10 +216,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 	}
 
 	private XYMultipleSeriesDataset getDateDemoDataset() {
-		String title = new String("Chart");
-		series1 = new CategorySeries(title);
-		series2 = new CategorySeries(title);
-		series3 = new CategorySeries(title);
+		series1 = new CategorySeries("X");
+		series2 = new CategorySeries("Y");
+		series3 = new CategorySeries("Z");
 		dataset = new XYMultipleSeriesDataset();
 		dataset.addSeries(series1.toXYSeries());
 		dataset.addSeries(series2.toXYSeries());
