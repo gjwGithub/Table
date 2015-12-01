@@ -29,7 +29,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 	SensorManager sensorManager = null;
 	Sensor sensor = null;
 
-	final int size = 4096;
+	final int size = 1024;
 	double[] x = new double[size];
 	double[] y = new double[size];
 	double[] z = new double[size];
@@ -80,7 +80,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 				handler.sendMessage(message);
 			}
 		};
-		timer.schedule(task, 500, 200);
+		timer.schedule(task, 2000, 500);
 	}
 
 	@Override
@@ -161,8 +161,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 				"Value", /* y轴标题 */
 				0, /* x轴最小值 */
 				size, /* x轴最大值 */
-				-1, /* y轴最小值 */
-				1, /* y轴最大值 */
+				-0.03, /* y轴最小值 */
+				0.03, /* y轴最大值 */
 				Color.GRAY, /* 坐标轴颜色 */
 				Color.LTGRAY); /* 标签颜色 标签即 图表标题 xy轴标题 */
 
