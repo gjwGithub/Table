@@ -11,6 +11,7 @@ import org.achartengine.model.XYMultipleSeriesDataset;
 import org.achartengine.renderer.XYMultipleSeriesRenderer;
 import org.achartengine.renderer.XYSeriesRenderer;
 
+import android.R.integer;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -21,8 +22,12 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
+import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -42,10 +47,27 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private CategorySeries series2;
 	private CategorySeries series3;
 	private XYMultipleSeriesDataset dataset;
-	
+
 	private Timer timer = new Timer();
 	private TimerTask task;
 	private static Handler handler;
+
+	private enum Status {
+		Higher, Normal, Lower
+	}
+
+	private Status firstStatus = Status.Normal;
+	private Status secondStatus = Status.Normal;
+
+	private float xAvg = 0;
+	private float yAvg = 0;
+	private float zAvg = 0;
+	private float xSum = 0;
+	private float ySum = 0;
+	private float zSum = 0;
+	private boolean initialized = true;
+	private final int initialTotalTimes = 500;
+	private int initialTimes = 0;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +84,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 		chart = ChartFactory.getCubeLineChartView(this, getDateDemoDataset(),
 				getDemoRenderer(), 0.5f);
 		layout.addView(chart, new LayoutParams(LayoutParams.WRAP_CONTENT, 380));
-		
+
 		handler = new Handler() {
 			@Override
 			public void handleMessage(Message msg) {
@@ -96,6 +118,23 @@ public class MainActivity extends Activity implements SensorEventListener {
 			addX(event.values[0]);
 			addY(event.values[1]);
 			addZ(event.values[2]);
+
+			if (!initialized) {
+				if (initialTimes < initialTotalTimes && initialTimes > 100) {
+					xSum += event.values[0];
+					ySum += event.values[1];
+					zSum += event.values[2];
+				} else if (initialTimes >= initialTotalTimes) {
+					xAvg = xSum / initialTotalTimes;
+					yAvg = ySum / initialTotalTimes;
+					zAvg = zSum / initialTotalTimes;
+					initialTimes = 0;
+					initialized = true;
+					Toast.makeText(this, "Initial finished", Toast.LENGTH_SHORT)
+							.show();
+				}
+				initialTimes++;
+			}
 		}
 		// Log.e("tag", "x: " + event.values[0] + " y: " + event.values[1]
 		// + " z: " + event.values[2]);
@@ -117,6 +156,43 @@ public class MainActivity extends Activity implements SensorEventListener {
 			yIndex = 0;
 		}
 		this.y[yIndex++] = y;
+
+		// Log.e("tag", "" + y);
+		if (yIndex > 3 && yIndex < size && initialized) {
+			TextView textView = (TextView) findViewById(R.id.textView1);
+
+			if (this.y[yIndex] - yAvg <= -0.01) {
+				if (firstStatus == Status.Normal)
+					firstStatus = Status.Lower;
+				else if (firstStatus == Status.Higher)
+					secondStatus = Status.Lower;
+			} else if (this.y[yIndex] - yAvg >= 0.01) {
+				if (firstStatus == Status.Normal)
+					firstStatus = Status.Higher;
+				else if (firstStatus == Status.Lower)
+					secondStatus = Status.Higher;
+			}
+
+			if (firstStatus == Status.Lower && secondStatus == Status.Higher) {
+				textView.setText("Left");
+				firstStatus = Status.Normal;
+				secondStatus = Status.Normal;
+			} else if (firstStatus == Status.Higher
+					&& secondStatus == Status.Lower) {
+				textView.setText("Right");
+				firstStatus = Status.Normal;
+				secondStatus = Status.Normal;
+			}
+
+			// if (this.y[yIndex] - this.y[yIndex - 2] <= -0.01
+			// && this.y[yIndex - 1] - this.y[yIndex - 2] >= 0.01)
+			// textView.setText("Left");
+			// else if (this.y[yIndex] - this.y[yIndex - 2] >= 0.01
+			// && this.y[yIndex - 1] - this.y[yIndex - 2] <= -0.01)
+			// textView.setText("Right");
+			// else
+			// textView.setText("Nothing");
+		}
 	}
 
 	private void addZ(float z) {
@@ -224,5 +300,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 		dataset.addSeries(series2.toXYSeries());
 		dataset.addSeries(series3.toXYSeries());
 		return dataset;
+	}
+
+	public void Initial(View v) {
+		initialized = false;
 	}
 }
